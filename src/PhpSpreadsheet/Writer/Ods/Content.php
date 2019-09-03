@@ -98,7 +98,10 @@ class Content extends WriterPart
 
         $this->writeSheets($objWriter);
 
-        $objWriter->writeElement('table:named-expressions');
+        $objWriter->startElement('table:named-expressions');
+        $this->writeNamedRanges($objWriter);
+        $objWriter->endElement();
+        
         $objWriter->endElement();
         $objWriter->endElement();
         $objWriter->endElement();
@@ -106,6 +109,38 @@ class Content extends WriterPart
         return $objWriter->getData();
     }
 
+    /**
+     * Write named ranges.
+     *
+     * @param XMLWriter $objWriter
+     */
+    private function writeNamedRanges(XMLWriter $objWriter)
+    {
+        $spreadsheet = $this->getParentWriter()->getSpreadsheet(); // @var $spreadsheet Spreadsheet
+        
+        // Loop named ranges
+        $namedRanges = $spreadsheet->getNamedRanges();
+        foreach ($namedRanges as $namedRange) {
+            // Create absolute coordinate
+            $range = Coordinate::splitRange($namedRange->getRange());
+            $iMax = count($range);
+            for ($i = 0; $i < $iMax; ++$i) {
+                $range[$i][0] = '$' . str_replace("'", "''", $namedRange->getWorksheet()->getTitle()) . '.' . Coordinate::absoluteReference($range[$i][0]);
+                if (isset($range[$i][1])) {
+                    $range[$i][1] = Coordinate::absoluteReference($range[$i][1]);
+                }
+            }
+            $rangeStr = Coordinate::buildRange($range);
+            
+            // Write range element
+            $objWriter->startElement('table:named-range');
+            $objWriter->writeAttribute('table:name', $namedRange->getName());
+            $objWriter->writeAttribute('table:base-cell-address', $rangeStr);
+            $objWriter->writeAttribute('table:cell-range-address', $rangeStr);
+            $objWriter->endElement();
+        }
+    }
+    
     /**
      * Write sheets.
      *
